@@ -2,7 +2,9 @@
 // Giao diện. Phần xử lý ảnh nằm ở inpaint.js + timemark.js.
 
 const $ = (id) => document.getElementById(id);
-const DEBUG = location.search.includes('debug');
+// Sửa code thì tăng số này VÀ số CACHE trong sw.js, để biết điện thoại đang chạy bản nào
+const VERSION = 'v6';
+const DEBUG = location.search.includes('debug') || localStorage.getItem('tm_debug') === '1';
 const canvas = $('cv');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
@@ -32,10 +34,10 @@ async function loadImage(file) {
 
     const img = ctx.getImageData(0, 0, w, h);
     layout = detectLayout(img.data, w, h);
-    if (DEBUG) {
-      setStatus(`goc ${srcW}x${srcH} | ` +
-        Object.entries(detectInfo).map(([k, v]) => `${k}=${v}`).join(' | '), layout ? 'busy' : 'err');
-    }
+    const soLieu = `goc ${srcW}x${srcH} | ` +
+      Object.entries(detectInfo).map(([k, v]) => `${k}=${v}`).join(' | ') +
+      (layout ? ` | chu_trai=${layout.text_left}` : '');
+    if (DEBUG) setStatus(soLieu, layout ? 'busy' : 'err');
     if (!layout) {
       baseImage = null;
       if (!DEBUG) setStatus('Không nhận ra mẫu Timemark panel xanh (thanh >>> + giờ vàng). Mẫu thẻ trắng chưa hỗ trợ.', 'err');
@@ -47,7 +49,7 @@ async function loadImage(file) {
     if (seq !== loadSeq) return;
     eraseOldText(img.data, w, h, layout);
     baseImage = img;
-    setStatus('');
+    setStatus(DEBUG ? soLieu : '');   // bật debug thì giữ số liệu để chụp màn hình gửi đi
     render();
   } catch (e) {
     if (seq !== loadSeq) return;
@@ -97,8 +99,28 @@ function initDate() {
   $('time').value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
 }
 
+/** Dòng cuối trang: bản đang chạy, chạm vào để bật/tắt số liệu dò mẫu. */
+function initFoot() {
+  const el = $('ver');
+  el.textContent = VERSION + (DEBUG ? ' · debug' : '');
+  el.addEventListener('click', () => {
+    localStorage.setItem('tm_debug', DEBUG ? '0' : '1');
+    location.replace(location.pathname);
+  });
+  $('reload').addEventListener('click', async () => {
+    setStatus('Đang lấy bản mới…', 'busy');
+    if (window.caches) await caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k))));
+    if (navigator.serviceWorker) {
+      const rs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(rs.map((r) => r.unregister()));
+    }
+    location.replace(location.pathname + '?t=' + Date.now());
+  });
+}
+
 async function main() {
   initDate();
+  initFoot();
   const fonts = [
     new FontFace('ResolveMedium', 'url(fonts/resolve-sans-w05-medium-cn.otf)'),
     new FontFace('FrancoC4SA', 'url(fonts/Franco-C4SA.ttf)'),
