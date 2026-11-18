@@ -100,7 +100,10 @@ function detectByTextBand(px, w, h) {
     let cnt = 0, s = -1, last = -1, bs = 0, be = -1;
     for (let x = 0; x < lim; x++) {
       const p = (y * w + x) * 4;
-      if (!(px[p] > 150 && px[p + 1] > 130 && px[p + 2] < 140)) continue;
+      // vàng theo tương quan r,g,b: đoạn kẻ bên trái là vàng nhạt (237,234,143),
+      // ngưỡng cứng b<140 bám quá sát nên đứt khi ảnh gốc lớn phải thu nhỏ nhiều
+      const r = px[p], g = px[p + 1];
+      if (!(r > 150 && g > 130 && px[p + 2] < (r < g ? r : g) - 60)) continue;
       cnt++;
       if (s < 0) s = x;
       else if (x - last > 25) { if (last - s > be - bs) { bs = s; be = last; } s = x; }
