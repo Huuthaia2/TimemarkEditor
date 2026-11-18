@@ -1,0 +1,14 @@
+{
+  "name": "Timemark Editor",
+  "short_name": "Timemark",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#11161d",
+  "theme_color": "#1b2430",
+  "lang": "vi",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
