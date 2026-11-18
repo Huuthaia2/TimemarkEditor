@@ -67,11 +67,22 @@ main {
 .f input {
   width: 100%; min-width: 0;
   background: none; border: 0; padding: 0;
-  color: var(--fg); font: 600 17px/1.2 inherit;
+  color: var(--fg); font: 600 21px/1.2 inherit;
 }
-.f input::-webkit-calendar-picker-indicator { filter: invert(.7); }
-.f.wd { flex: 0 0 68px; }
-.f.wd b { font-size: 17px; }
+/* bỏ icon lịch/đồng hồ: chạm vào ô là mở bộ chọn rồi, mà icon ăn mất ~24px bề ngang */
+.f input::-webkit-calendar-picker-indicator { display: none; }
+.f.dt { flex: 1.2 1 0; }   /* ô ngày chữ dài hơn ô giờ */
+.f.wd { flex: 0 0 60px; }
+.f.wd b { font-size: 21px; }
+
+/* máy nhỏ (iPhone SE đời đầu…) thì thu chữ lại cho khỏi cụt */
+@media (max-width: 350px) {
+  main { padding-left: 12px; padding-right: 12px; }
+  .fields { gap: 7px; }
+  .f { padding: 9px 7px; }
+  .f input, .f.wd b { font-size: 18px; }
+  .f.wd { flex: 0 0 46px; }
+}
 
 #stage {
   background: #000;
