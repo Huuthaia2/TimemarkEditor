@@ -19,6 +19,16 @@ const MASK_PAD_TOP = 6;
 const MASK_PAD_BOT = 12;
 const INPAINT_RADIUS = 6;
 
+// Số đo font lấy thẳng từ PIL/FreeType (advance, mép phải, mép mực trên) + ascent.
+// Dùng bảng cứng thay cho measureText: khớp đúng từng pixel với bản Python và
+// không lệ thuộc trình duyệt — Safari/Chrome đo advance khác nhau vài phần trăm px.
+const METRICS = {
+  'ResolveMedium110': { asc: 94, g: { "0": [39, 39, 21], "1": [21, 21, 21], "2": [33, 34, 20], "3": [34, 34, 21], "4": [33, 33, 21], "5": [34, 34, 21], "6": [38, 38, 20], "7": [30, 30, 21], "8": [35, 35, 21], "9": [37, 37, 21] } },
+  'ResolveMedium115': { asc: 98, g: { "0": [41, 41, 21], "1": [22, 22, 21], "2": [35, 35, 20], "3": [35, 35, 22], "4": [34, 34, 21], "5": [35, 35, 21], "6": [40, 40, 20], "7": [31, 31, 21], "8": [36, 36, 21], "9": [39, 39, 21] } },
+  'FrancoC4SA30': { asc: 28, g: { "0": [14, 14, 7], "1": [14, 14, 6], "2": [14, 14, 7], "3": [14, 14, 7], "4": [14, 14, 7], "5": [14, 14, 7], "6": [14, 14, 7], "7": [14, 14, 7], "8": [14, 14, 7], "9": [14, 14, 7], " ": [6, 6, 28], ",": [6, 6, 25], "/": [10, 10, 7], "C": [16, 16, 7], "N": [17, 17, 7], "T": [15, 15, 7], "h": [15, 15, 5] } },
+  'FrancoC4SA35': { asc: 33, g: { "0": [16, 16, 8], "1": [16, 16, 7], "2": [16, 16, 8], "3": [16, 16, 8], "4": [16, 16, 8], "5": [16, 16, 8], "6": [16, 16, 8], "7": [16, 16, 8], "8": [16, 16, 8], "9": [16, 16, 8], " ": [7, 7, 33], ",": [7, 7, 29], "/": [11, 11, 8], "C": [18, 18, 8], "N": [20, 20, 8], "T": [17, 17, 8], "h": [16, 16, 6] } },
+};
+
 // Python round() làm tròn số .5 về phía chẵn, Math.round thì không
 function pyRound(x) {
   const f = Math.floor(x);
@@ -154,17 +164,19 @@ function drawTracked(ctx, penLeft, inkTop, text, fontPx, family, fill) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = fill;
 
+  const m = METRICS[family + fontPx];
   const track = fontPx * TRACKING;
-  let x = penLeft;
-  const baseline = inkTop + ctx.measureText(text).actualBoundingBoxAscent;
-  let right = x;
+
+  // mép mực trên của cả chuỗi = ký tự cao nhất, đúng như PIL getbbox(text)[1]
+  let top = Infinity;
+  for (const ch of text) if (m.g[ch][2] < top) top = m.g[ch][2];
+  const baseline = inkTop - top + m.asc;
+
+  let x = penLeft, right = x;
   for (const ch of text) {
-    const mm = ctx.measureText(ch);
-    // PIL dùng advance đã hint (số nguyên); canvas trả số thực, không làm tròn thì
-    // sai số cộng dồn tới vài px qua chuỗi ngày 16 ký tự
-    const adv = Math.round(mm.width);
+    const [adv, inkRight] = m.g[ch];
     ctx.fillText(ch, x, baseline);
-    right = x + Math.max(Math.ceil(mm.actualBoundingBoxRight), adv);
+    right = x + inkRight;
     x += adv + track;
   }
   return pyRound(right);
