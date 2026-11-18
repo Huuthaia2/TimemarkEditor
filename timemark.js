@@ -56,6 +56,79 @@ function longestRun(flags, maxGap) {
 const detectInfo = {};
 
 function detectLayout(px, w, h) {
+  return detectByArrowBar(px, w, h) || detectByTextBand(px, w, h);
+}
+
+/**
+ * Cách dự phòng cho mẫu Timemark có hàng ">>>" màu xám trắng: không có thanh vàng
+ * dày để bám, chỉ còn một đường kẻ vàng mảnh. Bám thẳng vào dải chữ giờ vàng,
+ * đường kẻ mảnh phía trên cho bề ngang panel.
+ */
+function detectByTextBand(px, w, h) {
+  const lim = (w * 0.6) | 0;
+  const isTextYellow = (p) => px[p] > 180 && px[p + 1] > 160 && px[p + 2] < 120;
+
+  const prof = new Int32Array(h);
+  for (let y = h >> 1; y < h; y++) {
+    let n = 0;
+    for (let x = 0; x < lim; x++) if (isTextYellow((y * w + x) * 4)) n++;
+    prof[y] = n;
+  }
+
+  // đường kẻ ngang cũng vượt ngưỡng nhưng chỉ cao 1-2px, nên phải lọc theo chiều cao
+  let top = -1, bot = -1;
+  for (let y = h >> 1; y < h;) {
+    if (prof[y] <= 20) { y++; continue; }
+    let last = y;
+    for (let y2 = y + 1; y2 < h && y2 - last <= 6; y2++) if (prof[y2] > 3) last = y2;
+    if (last - y + 1 >= 50 && last - y + 1 <= 90) { top = y; bot = last; break; }
+    y = last + 1;
+  }
+  if (top < 0) { detectInfo.loi = 'khong thay dai chu gio cao 50-90px'; return null; }
+
+  const cols = new Int32Array(lim);
+  for (let y = top; y <= bot; y++)
+    for (let x = 0; x < lim; x++) if (isTextYellow((y * w + x) * 4)) cols[x]++;
+  let textLeft = -1;
+  for (let x = 0; x < lim; x++) if (cols[x] >= 5) { textLeft = x; break; }
+  if (textLeft < 0) { detectInfo.loi = 'chu gio qua mo'; return null; }
+
+  // hàng kẻ vàng có dải liên tục rộng nhất trong 100px phía trên chữ giờ.
+  // Hở tới 25px vì kẻ của mẫu này đứt quãng.
+  let bestY = -1, bestS = 0, bestE = -1;
+  for (let y = Math.max(0, top - 100); y < top - 1; y++) {
+    let cnt = 0, s = -1, last = -1, bs = 0, be = -1;
+    for (let x = 0; x < lim; x++) {
+      const p = (y * w + x) * 4;
+      if (!(px[p] > 150 && px[p + 1] > 130 && px[p + 2] < 140)) continue;
+      cnt++;
+      if (s < 0) s = x;
+      else if (x - last > 25) { if (last - s > be - bs) { bs = s; be = last; } s = x; }
+      last = x;
+    }
+    if (cnt < 60 || s < 0) continue;
+    if (last - s > be - bs) { bs = s; be = last; }
+    if (be - bs > bestE - bestS) { bestY = y; bestS = bs; bestE = be; }
+  }
+  // panel thật rộng 400-490px; hẹp hơn nhiều nghĩa là bắt nhầm (vd mẫu thẻ trắng)
+  if (bestY < 0 || bestE - bestS < 200) {
+    detectInfo.loi = bestY < 0 ? 'khong thay ke vang ngang tren chu gio'
+      : 'panel chi rong ' + (bestE - bestS) + 'px, qua hep';
+    return null;
+  }
+
+  detectInfo.loi = '';
+  detectInfo.cach = 'dai-chu-gio';
+  detectInfo.panel = bestS + '..' + bestE;
+  detectInfo.chuCu = top + '..' + bot;
+  detectInfo.caoChuCu = bot - top + 1;
+  return {
+    arrow: bestY, panel_x0: bestS, panel_x1: bestE,
+    text_top: top, text_bot: bot, text_left: textLeft,
+  };
+}
+
+function detectByArrowBar(px, w, h) {
   let arrowStart = null, arrowEnd = null;
   let bestRun = 0;
 

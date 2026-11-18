@@ -1,5 +1,5 @@
 // Đổi số này mỗi lần sửa code để điện thoại lấy bản mới
-const CACHE = 'timemark-v3';
+const CACHE = 'timemark-v4';
 const FILES = [
   '.', 'index.html', 'style.css', 'inpaint.js', 'timemark.js', 'app.js',
   'icon.svg', 'manifest.webmanifest',
