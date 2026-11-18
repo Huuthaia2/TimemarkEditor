@@ -52,8 +52,12 @@ function longestRun(flags, maxGap) {
   return [bestS, bestE];
 }
 
+// Số liệu của lần dò gần nhất, để xem khi mở trang kèm ?debug
+const detectInfo = {};
+
 function detectLayout(px, w, h) {
   let arrowStart = null, arrowEnd = null;
+  let bestRun = 0;
 
   for (let y = (h / 2) | 0; y < h; y++) {
     let consec = 0, maxC = 0;
@@ -64,12 +68,16 @@ function detectLayout(px, w, h) {
         if (consec > maxC) maxC = consec;
       } else consec = 0;
     }
+    if (maxC > bestRun) bestRun = maxC;
     if (maxC > 50) {
       if (arrowStart === null) arrowStart = y;
       arrowEnd = y;
     } else if (arrowStart !== null) break;
   }
-  if (arrowEnd === null) return null;
+  detectInfo.wh = w + 'x' + h;
+  detectInfo.vangDaiNhat = bestRun;
+  detectInfo.arrow = arrowStart + '..' + arrowEnd;
+  if (arrowEnd === null) { detectInfo.loi = 'khong thay thanh vang (can >50px)'; return null; }
 
   // dải cột vàng của panel: quét từ đỉnh thanh mũi tên xuống 30px
   const bandW = (w * 0.6) | 0;
@@ -109,8 +117,20 @@ function detectLayout(px, w, h) {
   let strongMin = -1;
   for (let i = 0; i < colHits.length; i++) if (colHits[i] >= 5) { strongMin = i; break; }
 
+  detectInfo.panel = panelX0 + '..' + panelX1;
+  detectInfo.chuCu = textTop === null ? 'khong thay' : textTop + '..' + textBot;
+  detectInfo.caoChuCu = textTop === null ? 0 : textBot - textTop + 1;
+  detectInfo.cotManh = strongMin;
+
   // panel xanh có chữ giờ cũ cao 50-90px; khác => mẫu thẻ trắng, chưa hỗ trợ
-  if (textTop === null || strongMin < 0 || !(textBot - textTop + 1 >= 50 && textBot - textTop + 1 <= 90)) return null;
+  const oldH = textTop === null ? 0 : textBot - textTop + 1;
+  if (textTop === null || strongMin < 0 || oldH < 50 || oldH > 90) {
+    detectInfo.loi = textTop === null ? 'khong thay chu gio vang'
+      : strongMin < 0 ? 'chu gio qua mo'
+      : 'chu gio cao ' + oldH + 'px, ngoai khoang 50-90';
+    return null;
+  }
+  detectInfo.loi = '';
 
   return {
     arrow: arrowEnd, panel_x0: panelX0, panel_x1: panelX1,

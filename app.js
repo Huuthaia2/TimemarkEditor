@@ -2,6 +2,7 @@
 // Giao diện. Phần xử lý ảnh nằm ở inpaint.js + timemark.js.
 
 const $ = (id) => document.getElementById(id);
+const DEBUG = location.search.includes('debug');
 const canvas = $('cv');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
@@ -20,6 +21,7 @@ async function loadImage(file) {
   setStatus('Đang xử lý ảnh…', 'busy');
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const srcW = bmp.width, srcH = bmp.height;
     const [w, h] = bmp.height > bmp.width ? OUTPUT_PORTRAIT : OUTPUT_LANDSCAPE;
     canvas.width = w;
     canvas.height = h;
@@ -30,9 +32,13 @@ async function loadImage(file) {
 
     const img = ctx.getImageData(0, 0, w, h);
     layout = detectLayout(img.data, w, h);
+    if (DEBUG) {
+      setStatus(`goc ${srcW}x${srcH} | ` +
+        Object.entries(detectInfo).map(([k, v]) => `${k}=${v}`).join(' | '), layout ? 'busy' : 'err');
+    }
     if (!layout) {
       baseImage = null;
-      setStatus('Không nhận ra mẫu Timemark panel xanh (thanh >>> + giờ vàng). Mẫu thẻ trắng chưa hỗ trợ.', 'err');
+      if (!DEBUG) setStatus('Không nhận ra mẫu Timemark panel xanh (thanh >>> + giờ vàng). Mẫu thẻ trắng chưa hỗ trợ.', 'err');
       return;
     }
 
